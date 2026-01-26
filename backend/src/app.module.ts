@@ -17,6 +17,8 @@ import { GlobalConfigModule } from './config/config.module';
 import { BullModule } from '@nestjs/bull';
 import { NotificationModule } from './notification/notification.module';
 import { GlobalConfigService } from './config/global-config.service';
+import { AuthModule } from './auth/auth.module';
+
 
 
 @Module({
