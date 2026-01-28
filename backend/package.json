@@ -18,7 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prepare": "husky",
+    "prepare": "npx husky",
     "migration:generate": "ts-node -r tsconfig-paths/register -r reflect-metadata src/cli/migration-generate.ts",
     "migration:run": "ts-node -r tsconfig-paths/register -r reflect-metadata src/cli/migration-run.ts",
     "migration:revert": "ts-node -r tsconfig-paths/register -r reflect-metadata src/cli/migration-revert.ts",
@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.4",
-    "@nestjs/cache-manager": "^2.2.2",
+    "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.1.12",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.12",
