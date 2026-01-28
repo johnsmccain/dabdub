@@ -225,8 +225,8 @@ export class AuthService {
     }
 
     user.password = await this.passwordService.hashPassword(newPassword);
-    user.passwordResetToken = null;
-    user.passwordResetTokenExpiry = null;
+    user.passwordResetToken = null as any;
+    user.passwordResetTokenExpiry = null as any;
 
     await this.userRepository.save(user);
   }

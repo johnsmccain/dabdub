@@ -15,7 +15,7 @@ export class BlockchainMonitoringController {
             await this.monitoringJob.triggerManual(networkId);
             return { message: 'Monitoring job triggered successfully' };
         } catch (error) {
-            throw new BadRequestException(error.message);
+            throw new BadRequestException((error as Error).message);
         }
     }
 

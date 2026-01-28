@@ -24,28 +24,19 @@ async function bootstrap() {
   // Global validation pipe
   app.useGlobalPipes(new CustomValidationPipe());
 
-  // Swagger Setup
-  const config = new DocumentBuilder()
-    .setTitle('Transaction API')
-    .setDescription('API for managing and querying transactions')
-    .setVersion('1.0')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
-
   // Enable CORS for public access
   app.enableCors();
 
   // Use helmet for security headers
   app.use(helmet());
 
-  // Swagger Documentation
-  const { DocumentBuilder, SwaggerModule } = await import('@nestjs/swagger');
+  // Swagger Setup
   const config = new DocumentBuilder()
-    .setTitle('Dabdub Webhooks API')
-    .setDescription('The Dabdub Webhooks Management API')
+    .setTitle('Dabdub API')
+    .setDescription('The Dabdub API documentation (Transactions, Webhooks, Health)')
     .setVersion('1.0')
     .addTag('Webhooks')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

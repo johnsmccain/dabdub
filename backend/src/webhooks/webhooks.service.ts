@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  WebhookConfiguration,
+  WebhookConfigurationEntity,
   WebhookEvent,
 } from '../database/entities/webhook-configuration.entity';
 import {
-  WebhookDeliveryLog,
+  WebhookDeliveryLogEntity,
   WebhookDeliveryStatus,
 } from '../database/entities/webhook-delivery-log.entity';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
@@ -22,16 +22,16 @@ export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
 
   constructor(
-    @InjectRepository(WebhookConfiguration)
-    private readonly configRepository: Repository<WebhookConfiguration>,
-    @InjectRepository(WebhookDeliveryLog)
-    private readonly logRepository: Repository<WebhookDeliveryLog>,
+    @InjectRepository(WebhookConfigurationEntity)
+    private readonly configRepository: Repository<WebhookConfigurationEntity>,
+    @InjectRepository(WebhookDeliveryLogEntity)
+    private readonly logRepository: Repository<WebhookDeliveryLogEntity>,
   ) {}
 
   async create(
     merchantId: string,
     createDto: CreateWebhookDto,
-  ): Promise<WebhookConfiguration> {
+  ): Promise<WebhookConfigurationEntity> {
     const webhook = this.configRepository.create({
       ...createDto,
       merchantId,
@@ -40,14 +40,14 @@ export class WebhooksService {
     return this.configRepository.save(webhook);
   }
 
-  async findAll(merchantId: string): Promise<WebhookConfiguration[]> {
+  async findAll(merchantId: string): Promise<WebhookConfigurationEntity[]> {
     return this.configRepository.find({
       where: { merchantId },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(merchantId: string, id: string): Promise<WebhookConfiguration> {
+  async findOne(merchantId: string, id: string): Promise<WebhookConfigurationEntity> {
     const webhook = await this.configRepository.findOne({
       where: { id, merchantId },
     });
@@ -61,7 +61,7 @@ export class WebhooksService {
     merchantId: string,
     id: string,
     updateDto: UpdateWebhookDto,
-  ): Promise<WebhookConfiguration> {
+  ): Promise<WebhookConfigurationEntity> {
     const webhook = await this.findOne(merchantId, id);
     Object.assign(webhook, updateDto);
     return this.configRepository.save(webhook);
@@ -72,11 +72,11 @@ export class WebhooksService {
     await this.configRepository.remove(webhook);
   }
 
-  async pause(merchantId: string, id: string): Promise<WebhookConfiguration> {
+  async pause(merchantId: string, id: string): Promise<WebhookConfigurationEntity> {
     return this.update(merchantId, id, { isActive: false });
   }
 
-  async resume(merchantId: string, id: string): Promise<WebhookConfiguration> {
+  async resume(merchantId: string, id: string): Promise<WebhookConfigurationEntity> {
     return this.update(merchantId, id, { isActive: true });
   }
 
@@ -84,7 +84,7 @@ export class WebhooksService {
     merchantId: string,
     id: string,
     limit = 50,
-  ): Promise<WebhookDeliveryLog[]> {
+  ): Promise<WebhookDeliveryLogEntity[]> {
     await this.findOne(merchantId, id); // Ensure it exists and belongs to merchant
     return this.logRepository.find({
       where: { webhookConfigId: id, merchantId },

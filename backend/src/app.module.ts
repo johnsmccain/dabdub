@@ -8,10 +8,9 @@ import { AppService } from './app.service';
 // Config & Core Modules
 import { GlobalConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
-import { CacheModule } from './cache/cache.module';
-import { LoggerModule } from './logger/logger.module';
-// Feature Modules
+import { CacheModule } from '@nestjs/cache-manager';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { LoggerModule } from './logger/logger.module';
 import { SettlementModule } from './settlement/settlement.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { HealthModule } from './health/health.module';
@@ -31,7 +30,7 @@ import { EVMModule } from './evm/evm.module';
   imports: [
     GlobalConfigModule,
     DatabaseModule,
-    CacheModule,
+    CacheModule.register({ isGlobal: true }),
     LoggerModule,
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([

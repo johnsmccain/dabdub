@@ -76,7 +76,7 @@ export class ApiKeyService {
     }
 
     // Check IP whitelist
-    if (apiKey.allowedIps.length > 0 && !apiKey.allowedIps.includes(ipAddress)) {
+    if (ipAddress && apiKey.allowedIps.length > 0 && !apiKey.allowedIps.includes(ipAddress)) {
       throw new UnauthorizedException('IP address not whitelisted for this API key');
     }
 
