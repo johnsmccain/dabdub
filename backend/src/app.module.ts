@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from 'nestjs-throttler-storage-redis';
 import { SentryFilter } from './common/filters/sentry.filter';
 import { BullModule } from '@nestjs/bull';
 // Controllers & Services
@@ -40,12 +41,22 @@ import { SentryModule } from '@sentry/nestjs/dist';
     CacheModule.register({ isGlobal: true }),
     LoggerModule,
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [GlobalConfigModule],
+      inject: [GlobalConfigService],
+      useFactory: (configService: GlobalConfigService) => ({
+        throttlers: [
+          {
+            ttl: 60000,
+            limit: 10,
+          },
+        ],
+        storage: new ThrottlerStorageRedisService({
+          host: configService.getRedisConfig().host,
+          port: configService.getRedisConfig().port,
+        }),
+      }),
+    }),
     BullModule.forRootAsync({
       imports: [GlobalConfigModule],
       useFactory: async (configService: GlobalConfigService) => ({

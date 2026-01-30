@@ -6,7 +6,7 @@ import { Resource } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 
 const sdk = new NodeSDK({
-    resource: new Resource({
+    resource: new (Resource as any)({
         [SemanticResourceAttributes.SERVICE_NAME]: 'dabdub-backend',
     }),
     traceExporter: new OTLPTraceExporter({

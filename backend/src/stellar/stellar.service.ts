@@ -9,15 +9,15 @@ export class StellarService implements OnModuleInit {
     private readonly logger = new Logger(StellarService.name);
     private networkPassphrase: string;
     private issuerPublicKey: string;
-    private streamClose: Function;
+    private streamClose: Function | undefined;
 
     constructor(private configService: ConfigService) { }
 
     onModuleInit() {
         const horizonUrl = this.configService.get<string>('STELLAR_HORIZON_URL', 'https://horizon-testnet.stellar.org');
         this.server = new StellarSdk.Horizon.Server(horizonUrl);
-        this.networkPassphrase = this.configService.get<string>('STELLAR_NETWORK_PASSPHRASE', StellarSdk.Networks.TESTNET);
-        this.issuerPublicKey = this.configService.get<string>('STELLAR_ISSUER_PUBLIC_KEY');
+        this.networkPassphrase = this.configService.get<string>('STELLAR_NETWORK_PASSPHRASE', StellarSdk.Networks.TESTNET) || StellarSdk.Networks.TESTNET;
+        this.issuerPublicKey = this.configService.get<string>('STELLAR_ISSUER_PUBLIC_KEY') || '';
 
         this.logger.log(`Connected to Stellar Horizon at ${horizonUrl} with network passphrase ${this.networkPassphrase}`);
     }
@@ -33,7 +33,7 @@ export class StellarService implements OnModuleInit {
             try {
                 await this.server.friendbot(pair.publicKey()).call();
                 this.logger.log(`Account ${pair.publicKey()} funded by friendbot`);
-            } catch (e) {
+            } catch (e: any) {
                 this.logger.error(`Failed to fund account with friendbot: ${e.message}`);
             }
         }
@@ -47,7 +47,7 @@ export class StellarService implements OnModuleInit {
         try {
             const account = await this.server.loadAccount(accountId);
             return account.balances;
-        } catch (e) {
+        } catch (e: any) {
             this.logger.error(`Failed to load account ${accountId}: ${e.message}`);
             throw e;
         }
@@ -87,7 +87,7 @@ export class StellarService implements OnModuleInit {
             transaction.sign(sourceKeypair);
 
             return transaction.toXDR();
-        } catch (e) {
+        } catch (e: any) {
             this.logger.error(`Error building transaction: ${e.message}`);
             throw e;
         }
@@ -99,7 +99,7 @@ export class StellarService implements OnModuleInit {
             const result = await this.server.submitTransaction(transaction);
             this.logger.log(`Transaction submitted successfully: ${result.hash}`);
             return result;
-        } catch (e) {
+        } catch (e: any) {
             this.logger.error(`Error submitting transaction: ${e.message}`);
             throw e;
         }
@@ -125,7 +125,7 @@ export class StellarService implements OnModuleInit {
 
             transaction.sign(sourceKeypair);
             return await this.server.submitTransaction(transaction);
-        } catch (e) {
+        } catch (e: any) {
             this.logger.error(`Error adding trustline: ${e.message}`);
             throw e;
         }
@@ -139,7 +139,7 @@ export class StellarService implements OnModuleInit {
                 .order('desc')
                 .call();
             return payments.records;
-        } catch (e) {
+        } catch (e: any) {
             this.logger.error(`Error fetching history: ${e.message}`);
             throw e;
         }
@@ -155,7 +155,7 @@ export class StellarService implements OnModuleInit {
             .forAccount(accountId)
             .cursor('now')
             .stream({
-                onmessage: (payment) => {
+                onmessage: (payment: any) => {
                     this.logger.log(`New payment detected: ${payment.id}`);
                     callback(payment);
                 },
