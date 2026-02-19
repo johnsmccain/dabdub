@@ -8,6 +8,8 @@ import {
   Res,
   HttpStatus,
   UseGuards,
+  Request,
+  NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -19,6 +21,8 @@ import {
 } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { ReportService } from './report.service';
+import { RevenueOverviewService } from './revenue-overview.service';
+import { RevenueExportService } from './revenue-export.service';
 import {
   DateRangeDto,
   DateRangeQueryDto,
@@ -35,6 +39,21 @@ import {
   ReportGenerateDto,
 } from './dto/analytics-response.dto';
 import { GenerateReportDto, ReportFormat } from './dto/report.dto';
+import {
+  RevenueOverviewResponseDto,
+  RevenueExportResponseDto,
+  RevenueGranularity,
+} from './dto/revenue-overview.dto';
+import {
+  SystemAnalyticsResponseDto,
+  AlertsResponseDto,
+  AcknowledgeAlertDto,
+  SystemAlertDto,
+} from './dto/system-analytics.dto';
+import { JwtGuard } from '../auth/guards/jwt.guard';
+import { RequirePermissionGuard } from '../auth/guards/require-permission.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { SystemAnalyticsService } from './system-analytics.service';
 
 @ApiTags('Analytics')
 @Controller('api/v1/analytics')
@@ -42,6 +61,9 @@ export class AnalyticsController {
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly reportService: ReportService,
+    private readonly revenueOverviewService: RevenueOverviewService,
+    private readonly revenueExportService: RevenueExportService,
+    private readonly systemAnalyticsService: SystemAnalyticsService,
   ) {}
 
   @Get('dashboard')
@@ -80,35 +102,63 @@ export class AnalyticsController {
     );
   }
 
-  @Get('revenue')
+  @Get('revenue/export')
+  @UseGuards(JwtGuard, RequirePermissionGuard)
+  @RequirePermission('analytics:revenue')
   @ApiOperation({
-    summary: 'Get revenue data with date range support',
+    summary: 'Export revenue report',
     description:
-      'Returns revenue data grouped by time interval with growth metrics',
-  })
-  @ApiQuery({ name: 'merchantId', required: true, description: 'Merchant ID' })
-  @ApiQuery({
-    name: 'startDate',
-    required: true,
-    description: 'Start date (ISO 8601)',
+      'Enqueues a background job to generate a CSV of all fee transactions for the date range. Returns jobId and estimated row count.',
   })
   @ApiQuery({
-    name: 'endDate',
-    required: true,
-    description: 'End date (ISO 8601)',
-  })
-  @ApiQuery({
-    name: 'interval',
+    name: 'period',
     required: false,
-    enum: TimeInterval,
-    description: 'Time interval for grouping',
+    description: 'Period preset (e.g. 7d, 30d)',
+    example: '30d',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Revenue data retrieved successfully',
-    type: RevenueResponseDto,
+    description: 'Export job queued',
+    type: RevenueExportResponseDto,
   })
-  async getRevenue(
+  async getRevenueExport(
+    @Query('period') period?: string,
+  ): Promise<RevenueExportResponseDto> {
+    return this.revenueExportService.enqueueExport(period || '30d');
+  }
+
+  @Get('revenue')
+  @UseGuards(JwtGuard, RequirePermissionGuard)
+  @RequirePermission('analytics:revenue')
+  @ApiOperation({
+    summary: 'Revenue overview (platform)',
+    description:
+      'Platform revenue overview with summary, by fee type, by tier, by chain, and trend. Requires analytics:revenue (SUPPORT_ADMIN gets 403).',
+  })
+  @ApiQuery({ name: 'period', required: false, description: 'e.g. 7d, 30d, 90d', example: '30d' })
+  @ApiQuery({ name: 'granularity', required: false, enum: RevenueGranularity })
+  @ApiResponse({ status: HttpStatus.OK, type: RevenueOverviewResponseDto })
+  async getRevenueOverview(
+    @Query('period') period?: string,
+    @Query('granularity') granularity?: RevenueGranularity,
+  ): Promise<RevenueOverviewResponseDto> {
+    return this.revenueOverviewService.getRevenueOverview(
+      period ?? '30d',
+      granularity ?? RevenueGranularity.DAY,
+    );
+  }
+
+  @Get('revenue/by-merchant')
+  @ApiOperation({
+    summary: 'Get merchant revenue data (date range)',
+    description: 'Returns revenue data for a merchant grouped by time interval',
+  })
+  @ApiQuery({ name: 'merchantId', required: true, description: 'Merchant ID' })
+  @ApiQuery({ name: 'startDate', required: true, description: 'Start date (ISO 8601)' })
+  @ApiQuery({ name: 'endDate', required: true, description: 'End date (ISO 8601)' })
+  @ApiQuery({ name: 'interval', required: false, enum: TimeInterval })
+  @ApiResponse({ status: HttpStatus.OK, type: RevenueResponseDto })
+  async getRevenueByMerchant(
     @Query('merchantId') merchantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
@@ -120,6 +170,72 @@ export class AnalyticsController {
       new Date(endDate),
       interval,
     );
+  }
+
+  @Get('system')
+  @UseGuards(JwtGuard, RequirePermissionGuard)
+  @RequirePermission('analytics:read')
+  @ApiOperation({
+    summary: 'System operations metrics',
+    description:
+      'Real-time performance and health: blockchain nodes, transaction processing, settlements, webhooks, API, jobs. Cached 30s.',
+  })
+  @ApiResponse({ status: HttpStatus.OK })
+  async getSystemMetrics(): Promise<SystemAnalyticsResponseDto> {
+    return this.systemAnalyticsService.getSystemMetrics();
+  }
+
+  @Get('alerts')
+  @UseGuards(JwtGuard, RequirePermissionGuard)
+  @RequirePermission('analytics:read')
+  @ApiOperation({
+    summary: 'Active system alerts',
+    description: 'Returns all currently active system alerts',
+  })
+  @ApiResponse({ status: HttpStatus.OK, type: AlertsResponseDto })
+  async getAlerts(): Promise<AlertsResponseDto> {
+    return { alerts: this.systemAnalyticsService.getAlerts() };
+  }
+
+  @Post('alerts/:id/acknowledge')
+  @UseGuards(JwtGuard, RequirePermissionGuard)
+  @RequirePermission('analytics:read')
+  @ApiOperation({
+    summary: 'Acknowledge alert',
+    description:
+      'Sets acknowledgedAt, acknowledgedBy, optional note. Logged to audit.',
+  })
+  @ApiParam({ name: 'id', description: 'Alert ID' })
+  @ApiResponse({ status: HttpStatus.OK })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Alert not found' })
+  async acknowledgeAlert(
+    @Param('id') id: string,
+    @Body() body: AcknowledgeAlertDto,
+    @Request() req: { user?: { id: string } },
+  ): Promise<{ acknowledged: boolean; alert: SystemAlertDto }> {
+    const userId = req?.user?.id ?? 'unknown';
+    const alert = this.systemAnalyticsService.acknowledgeAlert(
+      id,
+      userId,
+      body?.note,
+    );
+    if (!alert) {
+      throw new NotFoundException('Alert not found');
+    }
+    return {
+      acknowledged: true,
+      alert: {
+        id: alert.id,
+        type: alert.type,
+        severity: alert.severity,
+        message: alert.message,
+        affectedResource: alert.affectedResource,
+        triggeredAt: alert.triggeredAt.toISOString(),
+        acknowledgedAt: alert.acknowledgedAt?.toISOString() ?? null,
+        acknowledgedBy: alert.acknowledgedBy ?? null,
+        note: alert.note,
+      },
+    };
   }
 
   @Get('transactions/trends')
