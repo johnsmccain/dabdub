@@ -8,10 +8,17 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { MerchantJwtStrategy } from './strategies/merchant-jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { MerchantAuditLog } from './entities/merchant-audit-log.entity';
+import { MerchantNote } from './entities/merchant-note.entity';
+import { ApiKey } from '../../api-key/entities/api-key.entity';
+
+
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Merchant]),
+    TypeOrmModule.forFeature([Merchant, MerchantAuditLog, MerchantNote, ApiKey]),
+
+
     AuthModule, // Assuming we might need auth services like PasswordService if exported, or we replicate logic
     ConfigModule,
     PassportModule,
@@ -31,4 +38,4 @@ import { PassportModule } from '@nestjs/passport';
   providers: [MerchantService, MerchantJwtStrategy],
   exports: [MerchantService],
 })
-export class MerchantModule {}
+export class MerchantModule { }

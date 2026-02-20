@@ -7,7 +7,11 @@ import {
   UseGuards,
   Request,
   HttpStatus,
+  Param,
+  Patch,
+  Query,
 } from '@nestjs/common';
+
 import {
   ApiTags,
   ApiOperation,
@@ -24,12 +28,15 @@ import {
   SettingsDto,
   KycDocumentsDto,
   MerchantResponseDto,
+  MerchantDetailResponseDto,
+  UpdateMerchantDto,
 } from '../dto/merchant.dto';
+
 
 @ApiTags('Merchant')
 @Controller('api/v1/merchants')
 export class MerchantController {
-  constructor(private readonly merchantService: MerchantService) {}
+  constructor(private readonly merchantService: MerchantService) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new merchant' })
@@ -154,4 +161,41 @@ export class MerchantController {
   async getStatistics(@Request() req: any) {
     return this.merchantService.getStatistics(req.user.id);
   }
+
+  // ---- Parameterized routes MUST be after all literal routes to avoid shadowing ----
+
+  @Get(':id')
+  @UseGuards(MerchantAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get merchant detail by ID' })
+  @ApiResponse({ status: HttpStatus.OK, type: MerchantDetailResponseDto })
+  async getDetail(@Request() req: any, @Param('id') id: string) {
+    return this.merchantService.getDetail(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(MerchantAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update merchant settings' })
+  @ApiResponse({ status: HttpStatus.OK, type: MerchantDetailResponseDto })
+  async updateMerchant(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateMerchantDto,
+  ) {
+    return this.merchantService.updateMerchant(id, dto, req.user.id);
+  }
+
+  @Get(':id/history')
+  @UseGuards(MerchantAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get merchant change history' })
+  async getHistory(
+    @Param('id') id: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.merchantService.getHistory(id, page, limit);
+  }
 }
+

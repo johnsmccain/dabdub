@@ -5,7 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Merchant } from '../../database/entities/merchant.entity';
+
 
 @Entity('api_keys')
 export class ApiKey {
@@ -42,4 +46,12 @@ export class ApiKey {
 
   @Column({ type: 'timestamp', nullable: true })
   lastUsedAt: Date;
+
+  @Column({ name: 'merchant_id', nullable: true }) // nullable for existing keys or system keys
+  merchantId: string;
+
+  @ManyToOne(() => Merchant, (merchant) => merchant.apiKeys)
+  @JoinColumn({ name: 'merchant_id' })
+  merchant: Merchant;
 }
+

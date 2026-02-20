@@ -2,35 +2,33 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2023",
-
     "declaration": true,
     "removeComments": true,
     "sourceMap": true,
     "outDir": "./dist",
-
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-
     "strict": false,
     "strictPropertyInitialization": false,
     "noImplicitAny": false,
     "strictNullChecks": false,
     "forceConsistentCasingInFileNames": false,
     "noEmitOnError": false,
-
     "baseUrl": "./",
     "paths": {
-      "@config/*": ["src/config/*"],
-      "@modules/*": ["src/modules/*"],
-      "@common/*": ["src/common/*"]
+      "@config/*": [
+        "src/config/*"
+      ],
+      "@modules/*": [
+        "src/modules/*"
+      ],
+      "@common/*": [
+        "src/common/*"
+      ]
     },
-
+    "noImplicitThis": false,
     "incremental": true,
     "skipLibCheck": true,
-    "noEmitOnError": false,
-    "suppressImplicitAnyIndexErrors": true,
-    "noImplicitThis": false,
-
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
@@ -40,5 +38,8 @@
       "module": "commonjs"
     }
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

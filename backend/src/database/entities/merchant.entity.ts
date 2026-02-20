@@ -11,6 +11,10 @@ import { Exclude } from 'class-transformer';
 import { Settlement } from '../../settlement/entities/settlement.entity';
 import { PaymentRequest } from './payment-request.entity';
 import { WebhookConfigurationEntity } from './webhook-configuration.entity';
+import { MerchantNote } from '../../merchant/entities/merchant-note.entity';
+import { ApiKey } from '../../api-key/entities/api-key.entity';
+
+
 
 /**
  * Merchant account status
@@ -41,8 +45,10 @@ export enum BankAccountStatus {
 @Index(['email'], { unique: true })
 @Index(['status'])
 @Index(['kycStatus'])
+@Index(['kycStatus'])
 @Index(['createdAt'])
 export class Merchant {
+
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -89,6 +95,19 @@ export class Merchant {
   @Column({ name: 'settings', type: 'jsonb', nullable: true })
   settings!: Record<string, any>;
 
+  @Column({ name: 'settlement_config', type: 'jsonb', nullable: true })
+  settlementConfig!: Record<string, any>;
+
+  @Column({ name: 'fee_structure', type: 'jsonb', nullable: true })
+  feeStructure!: Record<string, any>;
+
+  @Column({ name: 'supported_chains', type: 'text', array: true, nullable: true })
+  supportedChains!: string[];
+
+  @Column({ name: 'flags', type: 'jsonb', nullable: true, default: [] })
+  flags!: string[];
+
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
@@ -134,7 +153,15 @@ export class Merchant {
     (kycVerification: any) => kycVerification.merchant,
   )
   kycVerifications!: any[];
+
+  @OneToMany(() => MerchantNote, (note) => note.merchant)
+  notes!: MerchantNote[];
+
+  @OneToMany(() => ApiKey, (apiKey) => apiKey.merchant)
+  apiKeys!: ApiKey[];
 }
+
+
 
 /**
  * KYC Document interface
