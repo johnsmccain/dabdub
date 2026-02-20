@@ -1,4 +1,9 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import {
+  Module,
+  NestModule,
+  MiddlewareConsumer,
+  RequestMethod,
+} from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -25,6 +30,8 @@ import { AuthModule } from './auth/auth.module';
 import { PublicModule } from './public/public.module';
 import { PaymentRequestModule } from './payment-request/payment-request.module';
 import { MerchantModule } from './merchant/merchant.module';
+import { JobsModule } from './modules/jobs/jobs.module';
+import { BullBoardAuthMiddleware } from './modules/jobs/middleware/bull-board-auth.middleware';
 // Middleware
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { EVMModule } from './evm/evm.module';
@@ -82,6 +89,7 @@ import { ExchangeRateModule } from './exchange-rate/exchange-rate.module';
     EVMModule,
     PaymentRequestModule,
     MerchantModule,
+    JobsModule,
     MonitoringModule,
     MerchantModule,
     ExchangeRateModule,
@@ -97,6 +105,9 @@ import { ExchangeRateModule } from './exchange-rate/exchange-rate.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(BullBoardAuthMiddleware)
+      .forRoutes({ path: 'admin/queues', method: RequestMethod.ALL });
     consumer.apply(RequestIdMiddleware).forRoutes('*');
   }
 }
