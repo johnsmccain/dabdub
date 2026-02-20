@@ -150,7 +150,12 @@ impl UserWallet {
         EmergencyWithdrawalEvent { amount: balance }.publish(&env);
     }
 
-    pub fn transfer_to_vault(env: Env, caller: Address, payment_amount: i128) -> i128 {
+    pub fn transfer_to_vault(
+        env: Env,
+        caller: Address,
+        payment_amount: i128,
+        recipient: Option<Address>,
+    ) -> i128 {
         if payment_amount <= 0 {
             panic!("Payment amount must be > 0");
         }
