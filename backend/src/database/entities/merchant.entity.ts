@@ -25,6 +25,7 @@ export enum MerchantStatus {
   SUSPENDED = 'suspended',
   PENDING = 'pending',
   CLOSED = 'closed',
+  TERMINATED = 'terminated',
 }
 
 export enum KycStatus {
@@ -117,6 +118,9 @@ export class Merchant {
 
   @Column({ name: 'closed_at', type: 'timestamp', nullable: true })
   closedAt?: Date;
+
+  @Column({ name: 'suspended_at', type: 'timestamp', nullable: true })
+  suspendedAt?: Date;
 
   @Column({ name: 'kyc_verified_at', type: 'timestamp', nullable: true })
   kycVerifiedAt?: Date;
