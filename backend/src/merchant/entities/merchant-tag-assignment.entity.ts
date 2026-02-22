@@ -1,11 +1,11 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    ManyToOne,
-    JoinColumn,
-    Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { MerchantTag } from './merchant-tag.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -15,26 +15,26 @@ import { UserEntity } from '../../database/entities/user.entity';
 @Index(['merchantId'])
 @Index(['tagId'])
 export class MerchantTagAssignment {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column({ name: 'merchant_id' })
-    merchantId: string;
+  @Column({ name: 'merchant_id' })
+  merchantId: string;
 
-    @Column({ name: 'tag_id' })
-    tagId: string;
+  @Column({ name: 'tag_id' })
+  tagId: string;
 
-    @ManyToOne(() => MerchantTag, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'tag_id' })
-    tag: MerchantTag;
+  @ManyToOne(() => MerchantTag, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tag_id' })
+  tag: MerchantTag;
 
-    @Column({ name: 'assigned_by_id' })
-    assignedById: string;
+  @Column({ name: 'assigned_by_id' })
+  assignedById: string;
 
-    @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', nullable: true })
-    @JoinColumn({ name: 'assigned_by_id' })
-    assignedBy: UserEntity;
+  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'assigned_by_id' })
+  assignedBy: UserEntity;
 
-    @CreateDateColumn({ type: 'timestamptz' })
-    createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
 }

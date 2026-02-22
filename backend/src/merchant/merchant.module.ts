@@ -3,7 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MerchantController } from './controllers/merchant.controller';
 import { MerchantFeeController } from './controllers/merchant-fee.controller';
 import { MerchantNoteController } from './controllers/merchant-note.controller';
-import { MerchantTagController, MerchantTagAssignmentController } from './controllers/merchant-tag.controller';
+import {
+  MerchantTagController,
+  MerchantTagAssignmentController,
+} from './controllers/merchant-tag.controller';
 import { MerchantFollowUpController } from './controllers/merchant-follow-up.controller';
 import { MerchantService } from './services/merchant.service';
 import { MerchantFeeService } from './services/merchant-fee.service';
@@ -96,4 +99,4 @@ import { BullModule } from '@nestjs/bull';
     MerchantTagService,
   ],
 })
-export class MerchantModule { }
+export class MerchantModule {}
