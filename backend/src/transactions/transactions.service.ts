@@ -4,15 +4,24 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, LessThanOrEqual, SelectQueryBuilder } from 'typeorm';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Transaction } from './entities/transaction.entity';
 import { TransactionStatusHistory } from './entities/transaction-status-history.entity';
-import { TransactionQueryDto } from './dto/transaction-query.dto';
+import { TransactionQueryDto, ListTransactionsQueryDto } from './dto/transaction-query.dto';
 import { TransactionDetailResponseDto } from './dto/transaction-detail.dto';
+import {
+  ListTransactionsResponseDto,
+  TransactionAggregatesDto,
+  TransactionExportJobResponseDto,
+} from './dto/transaction-list-response.dto';
 import { Settlement } from '../settlement/entities/settlement.entity';
 import { WebhookDeliveryLogEntity } from '../database/entities/webhook-delivery-log.entity';
+import { TRANSACTION_EXPORT_QUEUE, TransactionExportJobPayload } from './transaction-export.processor';
+import { randomUUID } from 'crypto';
 import * as puppeteer from 'puppeteer';
 import { Readable } from 'stream';
 
@@ -47,6 +56,8 @@ export class TransactionsService {
     private settlementRepository: Repository<Settlement>,
     @InjectRepository(WebhookDeliveryLogEntity)
     private webhookLogRepository: Repository<WebhookDeliveryLogEntity>,
+    @InjectQueue(TRANSACTION_EXPORT_QUEUE)
+    private exportQueue: Queue<TransactionExportJobPayload>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) { }
 
@@ -63,7 +74,7 @@ export class TransactionsService {
       sortOrder,
     } = query;
 
-    const where: any = {};
+    const where: any = { isSandbox: false };
 
     if (network) {
       where.network = network;
@@ -104,6 +115,240 @@ export class TransactionsService {
         currentPage: page,
       },
     };
+  }
+
+  /**
+   * High-performance transaction list with filtering, aggregates, and cursor pagination
+   */
+  async listTransactions(
+    query: ListTransactionsQueryDto,
+  ): Promise<ListTransactionsResponseDto | TransactionExportJobResponseDto> {
+    // Handle export trigger
+    if (query.export) {
+      return this.triggerExport(query);
+    }
+
+    const page = query.page || 1;
+    const limit = Math.min(query.limit || 20, 100);
+    const sortBy = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'DESC';
+
+    // Build query
+    const qb = this.buildFilteredQuery(query);
+
+    // Determine pagination strategy
+    const useCursorPagination = query.cursor !== undefined;
+
+    if (useCursorPagination && query.cursor) {
+      // Cursor-based pagination for large datasets
+      const cursorData = this.decodeCursor(query.cursor);
+      qb.andWhere(`t.${sortBy} ${sortOrder === 'DESC' ? '<' : '>'} :cursorValue`, {
+        cursorValue: cursorData.value,
+      });
+      qb.andWhere('t.id != :cursorId', { cursorId: cursorData.id });
+    } else {
+      // Offset-based pagination
+      qb.skip((page - 1) * limit);
+    }
+
+    qb.take(limit + 1); // Fetch one extra to determine if there's a next page
+
+    // Execute query
+    const transactions = await qb.getMany();
+    const hasMore = transactions.length > limit;
+    if (hasMore) {
+      transactions.pop(); // Remove the extra record
+    }
+
+    // Get total count (with caching for performance)
+    const total = await this.getCachedCount(query);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    let nextCursor: string | undefined;
+
+    if (hasMore && transactions.length > 0) {
+      const lastItem = transactions[transactions.length - 1];
+      nextCursor = this.encodeCursor({
+        value: (lastItem as any)[sortBy],
+        id: lastItem.id,
+      });
+    }
+
+    // Get aggregates (cached)
+    const aggregates = await this.getAggregates(query);
+
+    return {
+      data: transactions,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        nextCursor,
+      },
+      aggregates,
+    };
+  }
+
+  /**
+   * Build filtered query with all filter conditions
+   */
+  private buildFilteredQuery(filters: ListTransactionsQueryDto): SelectQueryBuilder<Transaction> {
+    const qb = this.transactionRepository
+      .createQueryBuilder('t')
+      .leftJoinAndSelect('t.paymentRequest', 'pr')
+      .andWhere('t.isSandbox = :isSandbox', { isSandbox: false });
+
+    // Exact hash match (highest priority)
+    if (filters.txHash) {
+      qb.andWhere('t.txHash = :txHash', { txHash: filters.txHash });
+      return qb; // Return early for exact match
+    }
+
+    // Apply filters
+    if (filters.merchantId) {
+      qb.andWhere('pr.merchantId = :merchantId', { merchantId: filters.merchantId });
+    }
+
+    if (filters.status) {
+      qb.andWhere('t.status = :status', { status: filters.status });
+    }
+
+    if (filters.chain) {
+      qb.andWhere('t.network = :chain', { chain: filters.chain });
+    }
+
+    if (filters.tokenSymbol) {
+      qb.andWhere('t.tokenSymbol = :tokenSymbol', { tokenSymbol: filters.tokenSymbol });
+    }
+
+    if (filters.minAmountUsd) {
+      qb.andWhere('CAST(t.usdValue AS DECIMAL) >= :minAmount', {
+        minAmount: parseFloat(filters.minAmountUsd),
+      });
+    }
+
+    if (filters.maxAmountUsd) {
+      qb.andWhere('CAST(t.usdValue AS DECIMAL) <= :maxAmount', {
+        maxAmount: parseFloat(filters.maxAmountUsd),
+      });
+    }
+
+    if (filters.createdAfter) {
+      qb.andWhere('t.createdAt >= :createdAfter', { createdAfter: new Date(filters.createdAfter) });
+    }
+
+    if (filters.createdBefore) {
+      qb.andWhere('t.createdAt <= :createdBefore', { createdBefore: new Date(filters.createdBefore) });
+    }
+
+    if (filters.flaggedOnly) {
+      qb.andWhere('t.flaggedForReview = :flagged', { flagged: true });
+    }
+
+    // Order by
+    const sortBy = filters.sortBy || 'createdAt';
+    const sortOrder = filters.sortOrder || 'DESC';
+    qb.orderBy(`t.${sortBy}`, sortOrder);
+    qb.addOrderBy('t.id', sortOrder); // Secondary sort for stable pagination
+
+    return qb;
+  }
+
+  /**
+   * Get cached count for performance
+   */
+  private async getCachedCount(filters: ListTransactionsQueryDto): Promise<number> {
+    const cacheKey = `tx:count:${JSON.stringify(filters)}`;
+    const cached = await this.cacheManager.get<number>(cacheKey);
+    
+    if (cached !== null && cached !== undefined) {
+      return cached;
+    }
+
+    const qb = this.buildFilteredQuery(filters);
+    const count = await qb.getCount();
+
+    // Cache for 15 seconds
+    await this.cacheManager.set(cacheKey, count, 15000);
+    return count;
+  }
+
+  /**
+   * Get aggregate statistics with caching
+   */
+  private async getAggregates(filters: ListTransactionsQueryDto): Promise<TransactionAggregatesDto> {
+    const cacheKey = `tx:aggregates:${JSON.stringify(filters)}`;
+    const cached = await this.cacheManager.get<TransactionAggregatesDto>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const qb = this.buildFilteredQuery(filters);
+
+    // Get aggregates in a single query
+    const result = await qb
+      .select('SUM(CAST(t.usdValue AS DECIMAL))', 'totalVolumeUsd')
+      .addSelect('SUM(CAST(t.feeCollectedUsd AS DECIMAL))', 'totalFeesUsd')
+      .addSelect('t.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('t.status')
+      .getRawMany();
+
+    const totalVolumeUsd = result.reduce((sum, r) => sum + parseFloat(r.totalVolumeUsd || '0'), 0);
+    const totalFeesUsd = result.reduce((sum, r) => sum + parseFloat(r.totalFeesUsd || '0'), 0);
+    const countByStatus: Record<string, number> = {};
+
+    result.forEach((r) => {
+      countByStatus[r.status] = parseInt(r.count, 10);
+    });
+
+    const aggregates: TransactionAggregatesDto = {
+      totalVolumeUsd: totalVolumeUsd.toFixed(2),
+      totalFeesUsd: totalFeesUsd.toFixed(2),
+      countByStatus,
+    };
+
+    // Cache for 15 seconds
+    await this.cacheManager.set(cacheKey, aggregates, 15000);
+    return aggregates;
+  }
+
+  /**
+   * Trigger async export job
+   */
+  private async triggerExport(filters: ListTransactionsQueryDto): Promise<TransactionExportJobResponseDto> {
+    const jobId = randomUUID();
+    
+    // Get estimated count
+    const estimatedRecords = await this.getCachedCount(filters);
+
+    // Enqueue export job
+    await this.exportQueue.add('generate', {
+      jobId,
+      filters,
+    } as TransactionExportJobPayload);
+
+    return {
+      jobId,
+      estimatedRecords,
+    };
+  }
+
+  /**
+   * Encode cursor for pagination
+   */
+  private encodeCursor(data: { value: any; id: string }): string {
+    return Buffer.from(JSON.stringify(data)).toString('base64');
+  }
+
+  /**
+   * Decode cursor for pagination
+   */
+  private decodeCursor(cursor: string): { value: any; id: string } {
+    return JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
   }
 
   async findOne(id: string): Promise<Transaction> {

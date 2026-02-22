@@ -5,15 +5,18 @@ import {
   Query,
   Res,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
-import { TransactionQueryDto } from './dto/transaction-query.dto';
+import { TransactionQueryDto, ListTransactionsQueryDto } from './dto/transaction-query.dto';
 import { TransactionDetailResponseDto } from './dto/transaction-detail.dto';
+import { ListTransactionsResponseDto, TransactionExportJobResponseDto } from './dto/transaction-list-response.dto';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Readable } from 'stream';
@@ -24,7 +27,23 @@ export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) { }
 
   @Get()
-  @ApiOperation({ summary: 'List all transactions with advanced filtering' })
+  @ApiOperation({
+    summary: 'List transactions with high-performance filtering',
+    description: 'Supports filtering, sorting, pagination (offset or cursor-based), aggregates, and async export',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns paginated list with aggregates, or export job ID if export=true',
+    type: ListTransactionsResponseDto,
+  })
+  async list(
+    @Query() query: ListTransactionsQueryDto,
+  ): Promise<ListTransactionsResponseDto | TransactionExportJobResponseDto> {
+    return this.transactionsService.listTransactions(query);
+  }
+
+  @Get('legacy')
+  @ApiOperation({ summary: '[DEPRECATED] Legacy list endpoint - use GET /api/v1/transactions instead' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Return list of transactions.' })
   async findAll(@Query() query: TransactionQueryDto) {
     return this.transactionsService.findAll(query);

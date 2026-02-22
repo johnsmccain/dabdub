@@ -18,7 +18,6 @@ pub enum DataKey {
     UsdcToken,
 }
 
-// Events
 #[contractevent(topics = ["WALLET", "withdraw"])]
 struct WithdrawalEvent {
     recipient: Address,
@@ -49,7 +48,6 @@ pub struct UserWallet;
 
 #[contractimpl]
 impl UserWallet {
-    /// Constructor - called once on deployment
     pub fn __constructor(
         env: Env,
         backend: Address,
@@ -68,14 +66,12 @@ impl UserWallet {
         }
     }
 
-    /// Get USDC balance
     pub fn get_balance(env: Env) -> i128 {
         let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
         let token_client = token::Client::new(&env, &usdc_token);
         token_client.balance(&env.current_contract_address())
     }
 
-    /// Withdraw USDC (backend or owner)
     pub fn withdraw(env: Env, caller: Address, amount: i128, recipient: Address) {
         let backend: Address = env.storage().instance().get(&DataKey::Backend).unwrap();
         let owner_opt: Option<Address> = env.storage().instance().get(&DataKey::Owner);
@@ -109,7 +105,6 @@ impl UserWallet {
         .publish(&env);
     }
 
-    /// Set owner (backend only)
     pub fn set_owner(env: Env, caller: Address, new_owner: Address) {
         let backend: Address = env.storage().instance().get(&DataKey::Backend).unwrap();
 
@@ -129,7 +124,6 @@ impl UserWallet {
         .publish(&env);
     }
 
-    /// Emergency withdraw (owner only)
     pub fn emergency_withdraw(env: Env, caller: Address) {
         let owner: Address = env
             .storage()

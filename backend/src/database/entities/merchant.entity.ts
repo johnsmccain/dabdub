@@ -13,6 +13,8 @@ import { PaymentRequest } from './payment-request.entity';
 import { WebhookConfigurationEntity } from './webhook-configuration.entity';
 import { MerchantNote } from '../../merchant/entities/merchant-note.entity';
 import { ApiKey } from '../../api-key/entities/api-key.entity';
+import { MerchantDocument } from '../../merchant/entities/merchant-document.entity';
+import { DocumentRequest } from '../../merchant/entities/document-request.entity';
 
 
 
@@ -25,16 +27,16 @@ export enum MerchantStatus {
   SUSPENDED = 'suspended',
   PENDING = 'pending',
   CLOSED = 'closed',
+  TERMINATED = 'terminated',
 }
 
 export enum KycStatus {
   PENDING = 'pending',
+  RESUBMISSION_REQUESTED = 'resubmission_requested',
   APPROVED = 'approved',
   REJECTED = 'rejected',
   NOT_SUBMITTED = 'not_submitted',
   IN_REVIEW = 'in_review',
-  UNDER_REVIEW = 'in_review',
-  RESUBMISSION_REQUESTED = 'resubmission_requested',
 }
 
 export enum BankAccountStatus {
@@ -119,6 +121,9 @@ export class Merchant {
   @Column({ name: 'closed_at', type: 'timestamp', nullable: true })
   closedAt?: Date;
 
+  @Column({ name: 'suspended_at', type: 'timestamp', nullable: true })
+  suspendedAt?: Date;
+
   @Column({ name: 'kyc_verified_at', type: 'timestamp', nullable: true })
   kycVerifiedAt?: Date;
 
@@ -136,6 +141,9 @@ export class Merchant {
 
   @Column({ name: 'api_quota_reset_at', type: 'timestamp', nullable: true })
   apiQuotaResetAt?: Date;
+
+  @Column({ name: 'ip_allowlist_enforced', type: 'boolean', default: false })
+  ipAllowlistEnforced!: boolean;
 
   // Relationships
   @OneToMany(() => Settlement, (settlement) => settlement.merchant)
@@ -161,6 +169,12 @@ export class Merchant {
 
   @OneToMany(() => ApiKey, (apiKey) => apiKey.merchant)
   apiKeys!: ApiKey[];
+
+  @OneToMany(() => MerchantDocument, (document) => document.merchant)
+  merchantDocuments!: MerchantDocument[];
+
+  @OneToMany(() => DocumentRequest, (request) => request.merchant)
+  documentRequests!: DocumentRequest[];
 }
 
 

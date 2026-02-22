@@ -6,9 +6,27 @@ mod token_helpers;
 
 use soroban_sdk::{
     contract, contractevent, contractimpl, contracttype, token, Address, BytesN, Env, Symbol,
+    Vec,
 };
 
 /// Pending claim record: amounts reserved and expiry ledger for cancellation rules.
+#[contracttype]
+#[derive(Clone)]
+pub struct PendingClaim {
+    pub recipient: Address,
+    pub payment_amount: i128,
+    pub fee_amount: i128,
+    pub expiry_ledger: u32,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct PendingClaim {
+    pub payment_amount: i128,
+    pub fee_amount: i128,
+    pub expiry_ledger: u32,
+}
+
 #[contracttype]
 #[derive(Clone)]
 pub struct PendingClaim {
@@ -33,9 +51,8 @@ pub enum DataKey {
     PendingClaim(BytesN<32>),
 }
 
-const MAX_FEE: i128 = 5_000_000; // $5 in USDC (7 decimals)
+const MAX_FEE: i128 = 5_000_000;
 
-// Events
 #[contractevent(topics = ["VAULT", "payment"])]
 struct PaymentProcessedEvent {
     user_wallet: Address,
@@ -70,6 +87,14 @@ struct MinDepositUpdatedEvent {
     new_min_deposit: i128,
 }
 
+#[contractevent(topics = ["VAULT", "claimed"])]
+struct PaymentClaimedEvent {
+    recipient: Address,
+    payment_id: BytesN<32>,
+    payment_amount: i128,
+    fee_amount: i128,
+}
+
 #[contractevent(topics = ["VAULT", "cancelled"])]
 struct PaymentCancelledEvent {
     payment_id: BytesN<32>,
@@ -87,7 +112,6 @@ pub struct Vault;
 
 #[contractimpl]
 impl Vault {
-    /// Constructor
     pub fn __constructor(
         env: Env,
         admin: Address,
@@ -121,11 +145,14 @@ impl Vault {
         env.storage().instance().set(&DataKey::TotalFees, &0i128);
         env.storage().instance().set(&DataKey::Paused, &false);
 
-        // Grant admin role
+        let empty_vec: Vec<BytesN<32>> = Vec::new(&env);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllPendingClaims, &empty_vec);
+
         access_control::grant_role(&env, admin, access_control::ADMIN_ROLE);
     }
 
-    /// Process payment (operator only)
     pub fn process_payment(
         env: Env,
         caller: Address,
@@ -157,7 +184,6 @@ impl Vault {
         let token_client = token::Client::new(&env, &usdc_token);
         let vault_balance = token_client.balance(&env.current_contract_address());
 
-        // Update payment tracking
         let mut available_payments: i128 = env
             .storage()
             .instance()
@@ -212,6 +238,7 @@ impl Vault {
 
         let expiry_ledger = env.ledger().sequence().saturating_add(CLAIM_EXPIRY_LEDGERS);
         let claim = PendingClaim {
+            recipient: user_wallet.clone(),
             payment_amount,
             fee_amount,
             expiry_ledger,
@@ -225,6 +252,110 @@ impl Vault {
             payment_id: payment_id.clone(),
             payment_amount,
             fee_amount,
+        }
+        .publish(&env);
+    }
+
+    
+    /// Claim a pending payment (recipient only, within expiry window)
+    pub fn claim(env: Env, caller: Address, payment_id: BytesN<32>) {
+        caller.require_auth();
+
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
+        if paused {
+            panic!("Contract is paused");
+        }
+
+        // Load pending claim
+        let claim: PendingClaim = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingClaim(payment_id.clone()))
+            .unwrap_or_else(|| panic!("Pending claim not found"));
+
+        // Verify caller is the intended recipient
+        if claim.recipient != caller {
+            panic!("Caller is not the intended recipient");
+        }
+
+        // Verify claim window has not expired
+        let current_ledger = env.ledger().sequence();
+        if current_ledger >= claim.expiry_ledger {
+            panic!("Claim window has expired");
+        }
+
+        // Update accounting — reduce available and total for both payments and fees
+        let mut available_payments: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::AvailablePayments)
+            .unwrap_or(0);
+        let mut total_payments: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalPayments)
+            .unwrap_or(0);
+        let mut available_fees: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::AvailableFees)
+            .unwrap_or(0);
+        let mut total_fees: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalFees)
+            .unwrap_or(0);
+
+        available_payments = available_payments
+            .checked_sub(claim.payment_amount)
+            .unwrap_or_else(|| panic!("Available payments underflow"));
+        total_payments = total_payments
+            .checked_sub(claim.payment_amount)
+            .unwrap_or_else(|| panic!("Total payments underflow"));
+        available_fees = available_fees
+            .checked_sub(claim.fee_amount)
+            .unwrap_or_else(|| panic!("Available fees underflow"));
+        total_fees = total_fees
+            .checked_sub(claim.fee_amount)
+            .unwrap_or_else(|| panic!("Total fees underflow"));
+
+        env.storage()
+            .instance()
+            .set(&DataKey::AvailablePayments, &available_payments);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalPayments, &total_payments);
+        env.storage()
+            .instance()
+            .set(&DataKey::AvailableFees, &available_fees);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalFees, &total_fees);
+
+        // Transfer payment amount to recipient
+        let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+        let token_client = token::Client::new(&env, &usdc_token);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &caller,
+            &claim.payment_amount,
+        );
+
+        // Remove pending claim from storage
+        env.storage()
+            .instance()
+            .remove(&DataKey::PendingClaim(payment_id.clone()));
+
+        // Emit event
+        PaymentClaimedEvent {
+            recipient: caller,
+            payment_id,
+            payment_amount: claim.payment_amount,
+            fee_amount: claim.fee_amount,
         }
         .publish(&env);
     }
@@ -469,7 +600,6 @@ impl Vault {
         env.storage().instance().set(&DataKey::Paused, &true);
     }
 
-    /// Unpause contract (admin only)
     pub fn unpause(env: Env, caller: Address) {
         access_control::require_role(&env, &caller, access_control::ADMIN_ROLE);
         caller.require_auth();
@@ -477,7 +607,6 @@ impl Vault {
         env.storage().instance().set(&DataKey::Paused, &false);
     }
 
-    /// Grant role (admin only)
     pub fn grant_role(env: Env, caller: Address, account: Address, role: Symbol) {
         access_control::require_role(&env, &caller, access_control::ADMIN_ROLE);
         caller.require_auth();
@@ -485,7 +614,6 @@ impl Vault {
         access_control::grant_role(&env, account, role);
     }
 
-    /// Revoke role (admin only)
     pub fn revoke_role(env: Env, caller: Address, account: Address, role: Symbol) {
         access_control::require_role(&env, &caller, access_control::ADMIN_ROLE);
         caller.require_auth();
@@ -493,7 +621,6 @@ impl Vault {
         access_control::revoke_role(&env, account, role);
     }
 
-    // View functions
     pub fn has_role(env: Env, account: Address, role: Symbol) -> bool {
         access_control::has_role(&env, &account, role)
     }
@@ -550,5 +677,46 @@ impl Vault {
         let required_balance = available_payments + available_fees;
 
         vault_balance >= required_balance
+    }
+
+    pub fn get_pending_claim(env: Env, payment_id: BytesN<32>) -> Option<PendingClaim> {
+        env.storage()
+            .instance()
+            .get(&DataKey::PendingClaim(payment_id))
+    }
+
+    pub fn get_all_pending_claims(env: Env) -> Vec<BytesN<32>> {
+        env.storage()
+            .instance()
+            .get(&DataKey::AllPendingClaims)
+            .unwrap_or_else(|| Vec::new(&env))
+    }
+
+    pub fn get_pending_claims_count(env: Env) -> u32 {
+        let all_claims: Vec<BytesN<32>> = env
+            .storage()
+            .instance()
+            .get(&DataKey::AllPendingClaims)
+            .unwrap_or_else(|| Vec::new(&env));
+        all_claims.len()
+    }
+
+    pub fn is_claim_expired(env: Env, payment_id: BytesN<32>) -> bool {
+        let claim: Option<PendingClaim> = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingClaim(payment_id));
+        
+        match claim {
+            Some(c) => {
+                let current_ledger = env.ledger().sequence();
+                current_ledger >= c.expiry_ledger
+            }
+            None => false,
+        }
+    }
+
+    pub fn get_recipient_pending_claims(env: Env, _recipient: Address) -> Vec<BytesN<32>> {
+        Vec::new(&env)
     }
 }

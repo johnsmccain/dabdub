@@ -12,6 +12,7 @@ import { SessionEntity } from './session.entity';
 export enum UserRole {
   ADMIN = 'admin',
   SUPER_ADMIN = 'super_admin',
+  FINANCE_ADMIN = 'finance_admin',
   MERCHANT = 'merchant',
   USER = 'user',
   SUPPORT_ADMIN = 'support_admin',
@@ -46,6 +47,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'merchants:read',
     'config:read',
   ],
+  [UserRole.FINANCE_ADMIN]: ['analytics:revenue', 'analytics:read'],
   [UserRole.MERCHANT]: [],
   [UserRole.USER]: [],
 };
@@ -95,6 +97,10 @@ export class UserEntity {
   @Column({ nullable: true })
   @Exclude()
   twoFactorSecret?: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  @Exclude()
+  backupCodeHashes?: string[];
 
   @Column({ default: 0 })
   loginAttempts: number;

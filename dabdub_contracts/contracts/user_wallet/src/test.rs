@@ -47,7 +47,6 @@ fn test_get_balance() {
     let contract_id = env.register(UserWallet, (&backend, &vault, &usdc, &None::<Address>));
     let client = UserWalletClient::new(&env, &contract_id);
 
-    // Mint some tokens to wallet
     let token_admin_client = token::StellarAssetClient::new(&env, &usdc);
     token_admin_client.mint(&contract_id, &1000_0000000);
 
@@ -69,11 +68,9 @@ fn test_withdraw_by_backend() {
     let contract_id = env.register(UserWallet, (&backend, &vault, &usdc, &None::<Address>));
     let client = UserWalletClient::new(&env, &contract_id);
 
-    // Mint tokens
     let token_admin_client = token::StellarAssetClient::new(&env, &usdc);
     token_admin_client.mint(&contract_id, &1000_0000000);
 
-    // Withdraw
     client.withdraw(&backend, &500_0000000, &recipient);
 
     assert_eq!(client.get_balance(), 500_0000000);
@@ -98,11 +95,9 @@ fn test_withdraw_by_owner() {
     let contract_id = env.register(UserWallet, (&backend, &vault, &usdc, &Some(owner.clone())));
     let client = UserWalletClient::new(&env, &contract_id);
 
-    // Mint tokens
     let token_admin_client = token::StellarAssetClient::new(&env, &usdc);
     token_admin_client.mint(&contract_id, &1000_0000000);
 
-    // Owner withdraws
     client.withdraw(&owner, &300_0000000, &recipient);
 
     assert_eq!(client.get_balance(), 700_0000000);
@@ -142,11 +137,9 @@ fn test_withdraw_insufficient_balance() {
     let contract_id = env.register(UserWallet, (&backend, &vault, &usdc, &None::<Address>));
     let client = UserWalletClient::new(&env, &contract_id);
 
-    // Mint only 50 USDC
     let token_admin_client = token::StellarAssetClient::new(&env, &usdc);
     token_admin_client.mint(&contract_id, &50_0000000);
 
-    // Try to withdraw 100
     client.withdraw(&backend, &100_0000000, &recipient);
 }
 
@@ -201,11 +194,9 @@ fn test_emergency_withdraw() {
     let contract_id = env.register(UserWallet, (&backend, &vault, &usdc, &Some(owner.clone())));
     let client = UserWalletClient::new(&env, &contract_id);
 
-    // Mint tokens
     let token_admin_client = token::StellarAssetClient::new(&env, &usdc);
     token_admin_client.mint(&contract_id, &1000_0000000);
 
-    // Emergency withdraw
     client.emergency_withdraw(&owner);
 
     assert_eq!(client.get_balance(), 0);

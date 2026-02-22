@@ -5,8 +5,13 @@ export enum TransactionType {
 }
 
 export enum TransactionStatus {
+  PENDING_CONFIRMATION = 'PENDING_CONFIRMATION',
+  CONFIRMED = 'CONFIRMED',
+  SETTLEMENT_PENDING = 'SETTLEMENT_PENDING',
+  SETTLED = 'SETTLED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+  // Legacy statuses for backward compatibility
   PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  FAILED = 'failed',
   REPLACED = 'replaced',
 }

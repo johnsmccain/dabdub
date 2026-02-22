@@ -18,9 +18,17 @@ import { TransactionStatusHistory } from './transaction-status-history.entity';
 @Index(['network'])
 @Index(['status'])
 @Index(['network', 'status'])
+@Index(['paymentRequestId', 'createdAt'])
+@Index(['status', 'createdAt'])
+@Index(['network', 'tokenSymbol'])
+@Index(['flaggedForReview'])
+@Index(['isSandbox'])
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({ name: 'is_sandbox', type: 'boolean', default: false })
+  isSandbox!: boolean;
 
   // --- RELATIONSHIP TO PAYMENT REQUEST ---
   @Column({ name: 'payment_request_id' })
@@ -154,6 +162,18 @@ export class Transaction {
 
   @Column({ name: 'settled_at', type: 'timestamp', nullable: true })
   settledAt?: Date;
+
+  @Column({ name: 'flagged_for_review', type: 'boolean', default: false })
+  flaggedForReview!: boolean;
+
+  @Column({ name: 'fee_collected_usd', type: 'decimal', precision: 20, scale: 8, nullable: true })
+  feeCollectedUsd?: string;
+
+  @Column({ name: 'settlement_id', type: 'varchar', nullable: true })
+  settlementId?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata?: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
