@@ -35,7 +35,6 @@ export default function LoyaltyPage() {
 
     return (
         <main className="w-full bg-[#141414] min-h-screen flex flex-col pb-24">
-            <StatusBar />
 
             {/* Header */}
             <div className="w-full px-6 py-4 flex items-center justify-between">
