@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { MerchantsService } from './merchants.service';
-import { Merchant, MerchantStatus } from '../../database/entities/merchant.entity';
+import {
+  Merchant,
+  MerchantStatus,
+} from '../../database/entities/merchant.entity';
 import { RedisService } from '../../common/redis';
 import { MerchantTier } from '../../merchant/dto/merchant.dto';
 import { BusinessType } from './dto/list-merchants-query.dto';
@@ -75,21 +78,36 @@ describe('MerchantsService', () => {
     expect(listQb.andWhere).toHaveBeenCalledWith('merchants.status = :status', {
       status: MerchantStatus.ACTIVE,
     });
-    expect(listQb.andWhere).toHaveBeenCalledWith('merchants.country = :countryCode', {
-      countryCode: 'US',
-    });
-    expect(listQb.andWhere).toHaveBeenCalledWith("merchants.settings->>'tier' = :tier", {
-      tier: MerchantTier.GROWTH,
-    });
-    expect(listQb.andWhere).toHaveBeenCalledWith('merchants.business_type = :businessType', {
-      businessType: BusinessType.LLC,
-    });
-    expect(listQb.andWhere).toHaveBeenCalledWith('merchants.total_volume_usd >= :minVolumeUsd', {
-      minVolumeUsd: '100',
-    });
-    expect(listQb.andWhere).toHaveBeenCalledWith('merchants.total_volume_usd <= :maxVolumeUsd', {
-      maxVolumeUsd: '1000',
-    });
+    expect(listQb.andWhere).toHaveBeenCalledWith(
+      'merchants.country = :countryCode',
+      {
+        countryCode: 'US',
+      },
+    );
+    expect(listQb.andWhere).toHaveBeenCalledWith(
+      "merchants.settings->>'tier' = :tier",
+      {
+        tier: MerchantTier.GROWTH,
+      },
+    );
+    expect(listQb.andWhere).toHaveBeenCalledWith(
+      'merchants.business_type = :businessType',
+      {
+        businessType: BusinessType.LLC,
+      },
+    );
+    expect(listQb.andWhere).toHaveBeenCalledWith(
+      'merchants.total_volume_usd >= :minVolumeUsd',
+      {
+        minVolumeUsd: '100',
+      },
+    );
+    expect(listQb.andWhere).toHaveBeenCalledWith(
+      'merchants.total_volume_usd <= :maxVolumeUsd',
+      {
+        maxVolumeUsd: '1000',
+      },
+    );
   });
 
   it('applies multiple filters using AND logic', async () => {
@@ -103,7 +121,9 @@ describe('MerchantsService', () => {
       businessType: BusinessType.LLC,
     } as any);
 
-    const whereClauses = listQb.andWhere.mock.calls.map((call: any[]) => call[0]);
+    const whereClauses = listQb.andWhere.mock.calls.map(
+      (call: any[]) => call[0],
+    );
     expect(whereClauses).toContain('merchants.status = :status');
     expect(whereClauses).toContain('merchants.country = :countryCode');
     expect(whereClauses).toContain('merchants.business_type = :businessType');
@@ -123,17 +143,23 @@ describe('MerchantsService', () => {
   });
 
   it('uses cache on second identical request', async () => {
-    const cached = { data: [{ id: 'm1' }], meta: { total: 1 }, summary: { byStatus: {} } };
-    mockRedis.get
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(cached);
+    const cached = {
+      data: [{ id: 'm1' }],
+      meta: { total: 1 },
+      summary: { byStatus: {} },
+    };
+    mockRedis.get.mockResolvedValueOnce(null).mockResolvedValueOnce(cached);
 
     mockRepo.createQueryBuilder
       .mockReturnValueOnce(listQb)
       .mockReturnValueOnce(summaryQb);
 
-    const first = await service.listMerchants({ status: MerchantStatus.ACTIVE } as any);
-    const second = await service.listMerchants({ status: MerchantStatus.ACTIVE } as any);
+    const first = await service.listMerchants({
+      status: MerchantStatus.ACTIVE,
+    } as any);
+    const second = await service.listMerchants({
+      status: MerchantStatus.ACTIVE,
+    } as any);
 
     expect(first).toBeDefined();
     expect(second).toEqual(cached);
@@ -146,8 +172,14 @@ describe('MerchantsService', () => {
       .mockReturnValueOnce(listQb)
       .mockReturnValueOnce(summaryQb);
 
-    await service.listMerchants({ sortBy: 'totalVolumeUsd', sortOrder: 'DESC' } as any);
+    await service.listMerchants({
+      sortBy: 'totalVolumeUsd',
+      sortOrder: 'DESC',
+    } as any);
 
-    expect(listQb.orderBy).toHaveBeenCalledWith('merchants.total_volume_usd', 'DESC');
+    expect(listQb.orderBy).toHaveBeenCalledWith(
+      'merchants.total_volume_usd',
+      'DESC',
+    );
   });
 });

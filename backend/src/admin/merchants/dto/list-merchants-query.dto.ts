@@ -28,7 +28,10 @@ export class ListMerchantsQueryDto extends PaginationQueryDto {
   @IsEnum(MerchantStatus)
   status?: MerchantStatus;
 
-  @ApiPropertyOptional({ example: 'US', description: '2-letter country code (ISO 3166-1 alpha-2)' })
+  @ApiPropertyOptional({
+    example: 'US',
+    description: '2-letter country code (ISO 3166-1 alpha-2)',
+  })
   @IsOptional()
   @IsString()
   @Length(2, 2)

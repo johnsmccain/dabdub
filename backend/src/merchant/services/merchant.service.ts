@@ -38,34 +38,32 @@ import { Inject } from '@nestjs/common';
 import { ApiKey } from '../../api-key/entities/api-key.entity';
 import { RedisService } from '../../common/redis';
 
-
 const DEFAULT_FEE_STRUCTURES: Record<MerchantTier, FeeStructureDto> = {
   [MerchantTier.STARTER]: {
     transactionFeePercentage: '2.90',
     transactionFeeFlat: '0.30',
     settlementFeePercentage: '1.00',
     minimumFee: '1.00',
-    maximumFee: '100.00'
+    maximumFee: '100.00',
   },
   [MerchantTier.GROWTH]: {
     transactionFeePercentage: '2.50',
     transactionFeeFlat: '0.25',
     settlementFeePercentage: '0.50',
     minimumFee: '0.50',
-    maximumFee: '50.00'
+    maximumFee: '50.00',
   },
   [MerchantTier.ENTERPRISE]: {
     transactionFeePercentage: '1.50',
     transactionFeeFlat: '0.10',
     settlementFeePercentage: '0.10',
     minimumFee: '0.00',
-    maximumFee: '0.00' // Custom/Unlimited
-  }
+    maximumFee: '0.00', // Custom/Unlimited
+  },
 };
 
 @Injectable()
 export class MerchantService {
-
   constructor(
     @InjectRepository(Merchant)
     private readonly merchantRepository: Repository<Merchant>,
@@ -79,8 +77,7 @@ export class MerchantService {
     private readonly redisService: RedisService,
     private readonly jwtService: JwtService,
     private readonly passwordService: PasswordService,
-  ) { }
-
+  ) {}
 
   async register(dto: RegisterMerchantDto): Promise<Merchant> {
     const { email, password, name, businessName } = dto;
@@ -191,14 +188,20 @@ export class MerchantService {
     // We'll use a raw query for performance/simplicity in this specific service without injecting TransactionRepo for now
     // Or better, inject DataSource or EntityManager if needed, but let's try to load relations or use query builder on merchant repo related
 
-    // Actually, proper way is to query transactions table. 
+    // Actually, proper way is to query transactions table.
     // Since we didn't inject TransactionRepository, let's use merchantRepository.manager to query
     const stats = await this.merchantRepository.manager
       .createQueryBuilder(Transaction, 'tx')
-      .where('tx.payment_request_id IN (SELECT id FROM payment_requests WHERE merchant_id = :id)', { id })
+      .where(
+        'tx.payment_request_id IN (SELECT id FROM payment_requests WHERE merchant_id = :id)',
+        { id },
+      )
       .select('COUNT(tx.id)', 'totalTransactionCount')
       .addSelect('SUM(tx.usd_value)', 'totalVolumeUsd')
-      .addSelect(`SUM(CASE WHEN tx.status = '${TransactionStatus.CONFIRMED}' THEN 1 ELSE 0 END)`, 'successCount')
+      .addSelect(
+        `SUM(CASE WHEN tx.status = '${TransactionStatus.CONFIRMED}' THEN 1 ELSE 0 END)`,
+        'successCount',
+      )
       .getRawOne();
 
     // Last 30 days
@@ -207,7 +210,10 @@ export class MerchantService {
 
     const last30Days = await this.merchantRepository.manager
       .createQueryBuilder(Transaction, 'tx')
-      .where('tx.payment_request_id IN (SELECT id FROM payment_requests WHERE merchant_id = :id)', { id })
+      .where(
+        'tx.payment_request_id IN (SELECT id FROM payment_requests WHERE merchant_id = :id)',
+        { id },
+      )
       .andWhere('tx.created_at >= :date', { date: thirtyDaysAgo })
       .select('COUNT(tx.id)', 'last30DaysTransactionCount')
       .addSelect('SUM(tx.usd_value)', 'last30DaysVolumeUsd')
@@ -215,15 +221,19 @@ export class MerchantService {
 
     const totalCount = parseInt(stats.totalTransactionCount || '0');
     const successCount = parseInt(stats.successCount || '0');
-    const successRate = totalCount > 0 ? ((successCount / totalCount) * 100).toFixed(1) : '0.0';
+    const successRate =
+      totalCount > 0 ? ((successCount / totalCount) * 100).toFixed(1) : '0.0';
     const totalVolume = parseFloat(stats.totalVolumeUsd || '0');
-    const avgTx = totalCount > 0 ? (totalVolume / totalCount).toFixed(2) : '0.00';
+    const avgTx =
+      totalCount > 0 ? (totalVolume / totalCount).toFixed(2) : '0.00';
 
     const result = {
       totalVolumeUsd: stats.totalVolumeUsd || '0.00',
       totalTransactionCount: totalCount,
       last30DaysVolumeUsd: last30Days.last30DaysVolumeUsd || '0.00',
-      last30DaysTransactionCount: parseInt(last30Days.last30DaysTransactionCount || '0'),
+      last30DaysTransactionCount: parseInt(
+        last30Days.last30DaysTransactionCount || '0',
+      ),
       successRate,
       averageTransactionUsd: avgTx,
     };
@@ -234,18 +244,23 @@ export class MerchantService {
 
   async getDetail(id: string): Promise<MerchantDetailResponseDto> {
     const cacheKey = `merchant_detail_${id}`;
-    const cached = await this.cacheManager.get<MerchantDetailResponseDto>(cacheKey);
+    const cached =
+      await this.cacheManager.get<MerchantDetailResponseDto>(cacheKey);
     if (cached) return cached;
 
     const merchant = await this.merchantRepository.findOne({
       where: { id },
     });
 
-    if (!merchant) throw new NotFoundException(`Merchant with id '${id}' not found`);
+    if (!merchant)
+      throw new NotFoundException(`Merchant with id '${id}' not found`);
 
     const [stats, notes, rawApiKeys] = await Promise.all([
       this.getStatistics(id),
-      this.noteRepository.find({ where: { merchantId: id }, order: { createdAt: 'DESC' } }),
+      this.noteRepository.find({
+        where: { merchantId: id },
+        order: { createdAt: 'DESC' },
+      }),
       this.apiKeyRepository.find({ where: { merchantId: id } }),
     ]);
 
@@ -262,25 +277,29 @@ export class MerchantService {
       id: merchant.id,
       businessName: merchant.businessName,
       email: merchant.email,
-      contact: { firstName: merchant.name.split(' ')[0], lastName: merchant.name.split(' ').slice(1).join(' '), phone: '' }, // extracting distinct parts
+      contact: {
+        firstName: merchant.name.split(' ')[0],
+        lastName: merchant.name.split(' ').slice(1).join(' '),
+        phone: '',
+      }, // extracting distinct parts
       countryCode: 'US', // default
       registrationNumber: '', // Not in entity
       businessType: 'ECOMMERCE', // default
       tier: (merchant.settings?.tier as MerchantTier) || MerchantTier.STARTER,
       status: merchant.status,
       activatedAt: merchant.createdAt, // approximation
-      settlementConfig: merchant.settlementConfig as any || {
+      settlementConfig: (merchant.settlementConfig as any) || {
         currency: 'USD',
         bankAccountLast4: '',
         settlementFrequency: 'DAILY',
-        minimumSettlementAmount: 100
+        minimumSettlementAmount: 100,
       },
-      feeStructure: merchant.feeStructure as any || {
+      feeStructure: (merchant.feeStructure as any) || {
         transactionFeePercentage: '1.50',
         transactionFeeFlat: '0.30',
         settlementFeePercentage: '0.25',
         minimumFee: '0.50',
-        maximumFee: '50.00'
+        maximumFee: '50.00',
       },
       supportedChains: merchant.supportedChains || [],
       apiKeys: maskedApiKeys,
@@ -299,9 +318,14 @@ export class MerchantService {
     return result;
   }
 
-  async updateMerchant(id: string, dto: UpdateMerchantDto, updatedByUserId: string): Promise<MerchantDetailResponseDto> {
+  async updateMerchant(
+    id: string,
+    dto: UpdateMerchantDto,
+    updatedByUserId: string,
+  ): Promise<MerchantDetailResponseDto> {
     const merchant = await this.merchantRepository.findOne({ where: { id } });
-    if (!merchant) throw new NotFoundException(`Merchant with id '${id}' not found`);
+    if (!merchant)
+      throw new NotFoundException(`Merchant with id '${id}' not found`);
 
     const beforeState = { ...merchant };
     const changedFields: Record<string, any> = {};
@@ -313,28 +337,39 @@ export class MerchantService {
       // Apply default fee structure for the new tier
       const defaultFees = DEFAULT_FEE_STRUCTURES[dto.tier];
       if (defaultFees) {
-        changedFields.feeStructure = { before: merchant.feeStructure, after: defaultFees };
+        changedFields.feeStructure = {
+          before: merchant.feeStructure,
+          after: defaultFees,
+        };
         merchant.feeStructure = defaultFees as any;
       }
     }
 
-
     if (dto.supportedChains) {
       // Validate chains exist in config if needed
-      changedFields.supportedChains = { before: merchant.supportedChains, after: dto.supportedChains };
+      changedFields.supportedChains = {
+        before: merchant.supportedChains,
+        after: dto.supportedChains,
+      };
       merchant.supportedChains = dto.supportedChains;
     }
 
     if (dto.settlementConfig) {
-      changedFields.settlementConfig = { before: merchant.settlementConfig, after: dto.settlementConfig };
-      merchant.settlementConfig = { ...merchant.settlementConfig, ...dto.settlementConfig };
+      changedFields.settlementConfig = {
+        before: merchant.settlementConfig,
+        after: dto.settlementConfig,
+      };
+      merchant.settlementConfig = {
+        ...merchant.settlementConfig,
+        ...dto.settlementConfig,
+      };
     }
 
     if (dto.internalNote) {
       await this.noteRepository.save({
         merchantId: merchant.id,
         content: dto.internalNote,
-        createdBy: { id: updatedByUserId, email: 'admin@example.com' } // Placeholder for real user info
+        createdBy: { id: updatedByUserId, email: 'admin@example.com' }, // Placeholder for real user info
       });
     }
 
@@ -344,9 +379,13 @@ export class MerchantService {
       await this.auditLogRepository.save({
         merchantId: merchant.id,
         action: 'MERCHANT_UPDATED',
-        changedBy: { id: updatedByUserId, email: 'admin@example.com', role: 'ADMIN' },
+        changedBy: {
+          id: updatedByUserId,
+          email: 'admin@example.com',
+          role: 'ADMIN',
+        },
         changes: changedFields,
-        ip: '127.0.0.1'
+        ip: '127.0.0.1',
       });
 
       // Invalidate cache
@@ -354,11 +393,14 @@ export class MerchantService {
       await this.invalidateMerchantListCache();
     }
 
-
     return this.getDetail(id);
   }
 
-  async getHistory(id: string, page: number = 1, limit: number = 20): Promise<any> {
+  async getHistory(
+    id: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<any> {
     const [data, total] = await this.auditLogRepository.findAndCount({
       where: { merchantId: id },
       order: { createdAt: 'DESC' },
@@ -373,10 +415,9 @@ export class MerchantService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
-      }
+      },
     };
   }
-
 
   async getProfile(id: string): Promise<Merchant> {
     const merchant = await this.merchantRepository.findOne({ where: { id } });

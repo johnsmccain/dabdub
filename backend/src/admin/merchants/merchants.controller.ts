@@ -13,7 +13,9 @@ export class MerchantsController {
   constructor(private readonly merchantsService: MerchantsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List merchants with advanced filtering, search, and sorting' })
+  @ApiOperation({
+    summary: 'List merchants with advanced filtering, search, and sorting',
+  })
   listMerchants(@Query() query: ListMerchantsQueryDto) {
     return this.merchantsService.listMerchants(query);
   }

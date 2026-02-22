@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
-import { Merchant, MerchantStatus } from '../../database/entities/merchant.entity';
+import {
+  Merchant,
+  MerchantStatus,
+} from '../../database/entities/merchant.entity';
 import { RedisService } from '../../common/redis';
 import { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
 
@@ -40,7 +43,9 @@ export class MerchantsService {
     } = query;
 
     const sortedParams = JSON.stringify(
-      Object.fromEntries(Object.entries(query).sort(([a], [b]) => a.localeCompare(b))),
+      Object.fromEntries(
+        Object.entries(query).sort(([a], [b]) => a.localeCompare(b)),
+      ),
     );
     const hash = createHash('md5').update(sortedParams).digest('hex');
     const cacheKey = `cache:merchants:list:${hash}`;
@@ -53,13 +58,23 @@ export class MerchantsService {
     const qb = this.merchantRepo.createQueryBuilder('merchants');
 
     if (status) qb.andWhere('merchants.status = :status', { status });
-    if (countryCode) qb.andWhere('merchants.country = :countryCode', { countryCode });
+    if (countryCode)
+      qb.andWhere('merchants.country = :countryCode', { countryCode });
     if (tier) qb.andWhere("merchants.settings->>'tier' = :tier", { tier });
-    if (businessType) qb.andWhere('merchants.business_type = :businessType', { businessType });
-    if (createdAfter) qb.andWhere('merchants.created_at >= :createdAfter', { createdAfter });
-    if (createdBefore) qb.andWhere('merchants.created_at <= :createdBefore', { createdBefore });
-    if (minVolumeUsd) qb.andWhere('merchants.total_volume_usd >= :minVolumeUsd', { minVolumeUsd });
-    if (maxVolumeUsd) qb.andWhere('merchants.total_volume_usd <= :maxVolumeUsd', { maxVolumeUsd });
+    if (businessType)
+      qb.andWhere('merchants.business_type = :businessType', { businessType });
+    if (createdAfter)
+      qb.andWhere('merchants.created_at >= :createdAfter', { createdAfter });
+    if (createdBefore)
+      qb.andWhere('merchants.created_at <= :createdBefore', { createdBefore });
+    if (minVolumeUsd)
+      qb.andWhere('merchants.total_volume_usd >= :minVolumeUsd', {
+        minVolumeUsd,
+      });
+    if (maxVolumeUsd)
+      qb.andWhere('merchants.total_volume_usd <= :maxVolumeUsd', {
+        maxVolumeUsd,
+      });
 
     if (search) {
       const searchParam = `%${search}%`;
@@ -74,7 +89,8 @@ export class MerchantsService {
       );
     }
 
-    const sortColumn = SORT_BY_TO_DB_COLUMN[sortBy] ?? SORT_BY_TO_DB_COLUMN.createdAt;
+    const sortColumn =
+      SORT_BY_TO_DB_COLUMN[sortBy] ?? SORT_BY_TO_DB_COLUMN.createdAt;
 
     qb.orderBy(`merchants.${sortColumn}`, sortOrder)
       .skip((page - 1) * limit)
@@ -88,13 +104,23 @@ export class MerchantsService {
       .addSelect('COUNT(*)', 'count')
       .groupBy('m.status');
 
-    if (countryCode) statusQb.andWhere('m.country = :countryCode', { countryCode });
+    if (countryCode)
+      statusQb.andWhere('m.country = :countryCode', { countryCode });
     if (tier) statusQb.andWhere("m.settings->>'tier' = :tier", { tier });
-    if (businessType) statusQb.andWhere('m.business_type = :businessType', { businessType });
-    if (createdAfter) statusQb.andWhere('m.created_at >= :createdAfter', { createdAfter });
-    if (createdBefore) statusQb.andWhere('m.created_at <= :createdBefore', { createdBefore });
-    if (minVolumeUsd) statusQb.andWhere('m.total_volume_usd >= :minVolumeUsd', { minVolumeUsd });
-    if (maxVolumeUsd) statusQb.andWhere('m.total_volume_usd <= :maxVolumeUsd', { maxVolumeUsd });
+    if (businessType)
+      statusQb.andWhere('m.business_type = :businessType', { businessType });
+    if (createdAfter)
+      statusQb.andWhere('m.created_at >= :createdAfter', { createdAfter });
+    if (createdBefore)
+      statusQb.andWhere('m.created_at <= :createdBefore', { createdBefore });
+    if (minVolumeUsd)
+      statusQb.andWhere('m.total_volume_usd >= :minVolumeUsd', {
+        minVolumeUsd,
+      });
+    if (maxVolumeUsd)
+      statusQb.andWhere('m.total_volume_usd <= :maxVolumeUsd', {
+        maxVolumeUsd,
+      });
     if (search) {
       const searchParam = `%${search}%`;
       statusQb.andWhere(
@@ -108,7 +134,10 @@ export class MerchantsService {
       );
     }
 
-    const statusCounts = await statusQb.getRawMany<{ status: MerchantStatus; count: string }>();
+    const statusCounts = await statusQb.getRawMany<{
+      status: MerchantStatus;
+      count: string;
+    }>();
     const byStatus = Object.values(MerchantStatus).reduce(
       (acc, merchantStatus) => ({ ...acc, [merchantStatus]: 0 }),
       {} as Record<MerchantStatus, number>,
