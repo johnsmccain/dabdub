@@ -12,7 +12,10 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 
-import { MerchantOnboardingProgress, OnboardingStepKey } from '../entities/merchant-onboarding-progress.entity';
+import {
+  MerchantOnboardingProgress,
+  OnboardingStepKey,
+} from '../entities/merchant-onboarding-progress.entity';
 import { Merchant } from '../../database/entities/merchant.entity';
 import {
   OnboardingFunnelResponseDto,
@@ -54,7 +57,13 @@ export class MerchantOnboardingService {
     );
     if (cached) return cached;
 
-    const funnel: Partial<{ [key in OnboardingStepKey]: { count: number; dropoffCount: number; dropoffRate: string } }> = {};
+    const funnel: Partial<{
+      [key in OnboardingStepKey]: {
+        count: number;
+        dropoffCount: number;
+        dropoffRate: string;
+      };
+    }> = {};
     let previousCount = 0;
 
     for (const step of ONBOARDING_STEPS) {
@@ -67,7 +76,10 @@ export class MerchantOnboardingService {
       });
 
       const dropoffCount = previousCount > 0 ? previousCount - count : 0;
-      const dropoffRate = previousCount > 0 ? ((dropoffCount / previousCount) * 100).toFixed(1) : '0.0';
+      const dropoffRate =
+        previousCount > 0
+          ? ((dropoffCount / previousCount) * 100).toFixed(1)
+          : '0.0';
 
       funnel[step] = {
         count,
@@ -90,19 +102,31 @@ export class MerchantOnboardingService {
     const averageDaysToActivation =
       activatedCount > 0
         ? totalProgress
-            .filter((p) => p.completedStepCount === p.totalStepCount && p.lastProgressAt)
+            .filter(
+              (p) =>
+                p.completedStepCount === p.totalStepCount && p.lastProgressAt,
+            )
             .reduce((sum, p) => {
-              const diffMs = (p.lastProgressAt!.getTime() - p.createdAt.getTime());
-              return sum + (diffMs / (1000 * 60 * 60 * 24));
+              const diffMs =
+                p.lastProgressAt!.getTime() - p.createdAt.getTime();
+              return sum + diffMs / (1000 * 60 * 60 * 24);
             }, 0) / activatedCount
         : 0;
 
     const totalStarted = totalProgress.length;
     const conversionRate =
-      totalStarted > 0 ? ((activatedCount / totalStarted) * 100).toFixed(1) : '0.0';
+      totalStarted > 0
+        ? ((activatedCount / totalStarted) * 100).toFixed(1)
+        : '0.0';
 
     const result: OnboardingFunnelResponseDto = {
-      funnel: funnel as { [key in OnboardingStepKey]: { count: number; dropoffCount: number; dropoffRate: string } },
+      funnel: funnel as {
+        [key in OnboardingStepKey]: {
+          count: number;
+          dropoffCount: number;
+          dropoffRate: string;
+        };
+      },
       stuckMerchants,
       averageDaysToActivation: parseFloat(averageDaysToActivation.toFixed(1)),
       conversionRate,
@@ -114,7 +138,9 @@ export class MerchantOnboardingService {
     return result;
   }
 
-  async listMerchants(query: OnboardingListQueryDto): Promise<{ data: OnboardingMerchantListDto[]; total: number }> {
+  async listMerchants(
+    query: OnboardingListQueryDto,
+  ): Promise<{ data: OnboardingMerchantListDto[]; total: number }> {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -164,14 +190,18 @@ export class MerchantOnboardingService {
     };
   }
 
-  async getMerchantDetail(merchantId: string): Promise<OnboardingMerchantDetailDto> {
+  async getMerchantDetail(
+    merchantId: string,
+  ): Promise<OnboardingMerchantDetailDto> {
     const progress = await this.progressRepository.findOne({
       where: { merchantId },
       relations: ['merchant'],
     });
 
     if (!progress) {
-      throw new NotFoundException('Onboarding progress not found for this merchant');
+      throw new NotFoundException(
+        'Onboarding progress not found for this merchant',
+      );
     }
 
     return {
@@ -193,7 +223,10 @@ export class MerchantOnboardingService {
     };
   }
 
-  async sendNudgeEmail(merchantId: string, customMessage?: string): Promise<void> {
+  async sendNudgeEmail(
+    merchantId: string,
+    customMessage?: string,
+  ): Promise<void> {
     const progress = await this.progressRepository.findOne({
       where: { merchantId },
       relations: ['merchant'],
@@ -208,7 +241,9 @@ export class MerchantOnboardingService {
     const lastNudge = await this.cacheManager.get<number>(lastNudgeKey);
 
     if (lastNudge) {
-      throw new BadRequestException('Nudge email already sent within the last 48 hours');
+      throw new BadRequestException(
+        'Nudge email already sent within the last 48 hours',
+      );
     }
 
     const currentStep = this.getCurrentStep(progress.steps);
@@ -231,7 +266,11 @@ export class MerchantOnboardingService {
     // Audit log (would be done via another service)
   }
 
-  async skipStep(merchantId: string, step: OnboardingStepKey, reason: string): Promise<void> {
+  async skipStep(
+    merchantId: string,
+    step: OnboardingStepKey,
+    reason: string,
+  ): Promise<void> {
     const progress = await this.progressRepository.findOne({
       where: { merchantId },
     });
@@ -250,7 +289,9 @@ export class MerchantOnboardingService {
     progress.steps[stepIndex].completedAt = new Date();
 
     // Update counts
-    const completedCount = progress.steps.filter((s) => s.status === 'COMPLETED').length;
+    const completedCount = progress.steps.filter(
+      (s) => s.status === 'COMPLETED',
+    ).length;
     progress.completedStepCount = completedCount;
     progress.completionPercentage = (
       (completedCount / progress.totalStepCount) *
@@ -291,10 +332,12 @@ export class MerchantOnboardingService {
       activatedCount > 0
         ? progressData
             .filter(
-              (p) => p.completedStepCount === p.totalStepCount && p.lastProgressAt,
+              (p) =>
+                p.completedStepCount === p.totalStepCount && p.lastProgressAt,
             )
             .reduce((sum, p) => {
-              const diffMs = p.lastProgressAt!.getTime() - p.createdAt.getTime();
+              const diffMs =
+                p.lastProgressAt!.getTime() - p.createdAt.getTime();
               return sum + diffMs / (1000 * 60 * 60 * 24);
             }, 0) / activatedCount
         : 0;

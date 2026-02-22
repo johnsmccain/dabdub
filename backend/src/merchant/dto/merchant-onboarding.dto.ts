@@ -16,7 +16,9 @@ export class OnboardingFunnelStatsDto {
 }
 
 export class OnboardingFunnelResponseDto {
-  funnel: { [key in OnboardingStepKey]: Omit<OnboardingFunnelStatsDto, 'step'> };
+  funnel: {
+    [key in OnboardingStepKey]: Omit<OnboardingFunnelStatsDto, 'step'>;
+  };
   stuckMerchants: number;
   averageDaysToActivation: number;
   conversionRate: string;
