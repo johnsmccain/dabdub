@@ -8,10 +8,12 @@ import {
   MerchantTagAssignmentController,
 } from './controllers/merchant-tag.controller';
 import { MerchantFollowUpController } from './controllers/merchant-follow-up.controller';
+import { SupportTicketController } from './controllers/support-ticket.controller';
 import { MerchantService } from './services/merchant.service';
 import { MerchantFeeService } from './services/merchant-fee.service';
 import { MerchantNoteService } from './services/merchant-note.service';
 import { MerchantTagService } from './services/merchant-tag.service';
+import { SupportTicketService } from './services/support-ticket.service';
 import { MerchantLifecycleController } from './controllers/merchant-lifecycle.controller';
 import { MerchantLifecycleService } from './services/merchant-lifecycle.service';
 import { MerchantLifecycleProcessor } from './processors/merchant-lifecycle.processor';
@@ -25,6 +27,8 @@ import { MerchantAuditLog } from './entities/merchant-audit-log.entity';
 import { MerchantNote } from './entities/merchant-note.entity';
 import { MerchantTag } from './entities/merchant-tag.entity';
 import { MerchantTagAssignment } from './entities/merchant-tag-assignment.entity';
+import { SupportTicket } from './entities/support-ticket.entity';
+import { SupportTicketMessage } from './entities/support-ticket-message.entity';
 import { ApiKey } from '../api-key/entities/api-key.entity';
 import { MerchantFeeConfig } from './entities/merchant-fee-config.entity';
 import { PlatformFeeDefault } from './entities/platform-fee-default.entity';
@@ -44,6 +48,8 @@ import { BullModule } from '@nestjs/bull';
       MerchantNote,
       MerchantTag,
       MerchantTagAssignment,
+      SupportTicket,
+      SupportTicketMessage,
       ApiKey,
       MerchantFeeConfig,
       PlatformFeeDefault,
@@ -80,6 +86,7 @@ import { BullModule } from '@nestjs/bull';
     MerchantTagController,
     MerchantTagAssignmentController,
     MerchantFollowUpController,
+    SupportTicketController,
   ],
   providers: [
     MerchantService,
@@ -88,6 +95,7 @@ import { BullModule } from '@nestjs/bull';
     MerchantLifecycleProcessor,
     MerchantNoteService,
     MerchantTagService,
+    SupportTicketService,
     MerchantJwtStrategy,
     SuperAdminGuard,
   ],
@@ -97,6 +105,7 @@ import { BullModule } from '@nestjs/bull';
     MerchantLifecycleService,
     MerchantNoteService,
     MerchantTagService,
+    SupportTicketService,
   ],
 })
 export class MerchantModule {}
