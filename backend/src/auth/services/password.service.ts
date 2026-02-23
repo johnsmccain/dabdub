@@ -4,9 +4,14 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class PasswordService {
   private readonly saltRounds = 10;
+  private readonly adminSaltRounds = 12;
 
   async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, this.saltRounds);
+  }
+
+  async hashPasswordForAdmin(password: string): Promise<string> {
+    return bcrypt.hash(password, this.adminSaltRounds);
   }
 
   async comparePassword(

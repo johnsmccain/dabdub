@@ -14,6 +14,7 @@ import { AppService } from './app.service';
 import { GlobalConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './common/redis';
+import { CacheModule } from './cache/cache.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LoggerModule } from './logger/logger.module';
 import { SettlementModule } from './settlement/settlement.module';
@@ -52,6 +53,7 @@ import { AlertModule } from './alert/alert.module';
 import { CustomReportModule } from './custom-report/custom-report.module';
 import { FeatureFlagModule } from './feature-flag/feature-flag.module';
 import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module';
+import { AdminUsersModule } from './admin-users/admin-users.module';
 
 @Module({
   imports: [
@@ -59,6 +61,7 @@ import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module
     GlobalConfigModule,
     DatabaseModule,
     RedisModule,
+    CacheModule.forRoot(),
     LoggerModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
@@ -111,6 +114,7 @@ import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module
     CustomReportModule,
     FeatureFlagModule,
     AdminAccessLogModule,
+    AdminUsersModule,
   ],
   controllers: [AppController],
   providers: [
