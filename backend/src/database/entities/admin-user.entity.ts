@@ -21,9 +21,6 @@ export enum AdminStatus {
   PENDING_SETUP = 'PENDING_SETUP',
 }
 
-/** Permission identifier (string). */
-export type Permission = string;
-
 /** Role-to-permissions map for admin users (admin_users table). */
 export const ADMIN_ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   [AdminRole.SUPER_ADMIN]: [
@@ -35,7 +32,6 @@ export const ADMIN_ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'config:read',
     'config:write',
     'admin:queues',
-    'admin-users:manage',
   ],
   [AdminRole.FINANCE_ADMIN]: ['analytics:read', 'analytics:revenue'],
   [AdminRole.OPERATIONS_ADMIN]: [
@@ -98,26 +94,4 @@ export class AdminUser extends BaseEntity {
   @ManyToOne(() => AdminUser, { nullable: true })
   @JoinColumn({ name: 'createdById' })
   createdBy: AdminUser | null;
-
-  @Column({ type: 'jsonb', default: [] })
-  customPermissions: Permission[];
-
-  @Column({ type: 'jsonb', default: [] })
-  revokedPermissions: Permission[];
-
-  @Column({ nullable: true })
-  avatarUrl: string | null;
-
-  @Column({ nullable: true })
-  phoneNumber: string | null;
-
-  @Column({ type: 'timestamptz', nullable: true })
-  passwordChangedAt: Date | null;
-
-  @Column({ type: 'boolean', default: true })
-  mustChangePassword: boolean;
-
-  /** Last 5 password hashes to prevent reuse (stored hashes, select: false). */
-  @Column({ type: 'jsonb', default: [], select: false })
-  passwordHistory: string[];
 }
