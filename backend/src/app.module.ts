@@ -50,6 +50,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 import { AlertModule } from './alert/alert.module';
 import { CustomReportModule } from './custom-report/custom-report.module';
 import { FeatureFlagModule } from './feature-flag/feature-flag.module';
+import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { FeatureFlagModule } from './feature-flag/feature-flag.module';
     AlertModule,
     CustomReportModule,
     FeatureFlagModule,
+    AdminAccessLogModule,
   ],
   controllers: [AppController],
   providers: [
