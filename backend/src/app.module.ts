@@ -48,6 +48,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 // TODO: Enable Sentry when @sentry/nestjs module is compatible
 // import { SentryModule } from '@sentry/nestjs';
 import { AlertModule } from './alert/alert.module';
+import { CustomReportModule } from './custom-report/custom-report.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { AlertModule } from './alert/alert.module';
     SandboxModule,
     MaintenanceModule,
     AlertModule,
+    CustomReportModule,
   ],
   controllers: [AppController],
   providers: [
