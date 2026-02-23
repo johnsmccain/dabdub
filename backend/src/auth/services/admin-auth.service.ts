@@ -310,7 +310,7 @@ export class AdminAuthService {
 
   async revokeSession(currentAdminId: string, currentRole: UserRole, sessionIdToRevoke: string): Promise<void> {
     // Determine the target adminId
-    let targetAdminId = currentAdminId;
+    const targetAdminId = currentAdminId;
 
     if (currentRole === UserRole.SUPER_ADMIN) {
       const sessionRaw = await this.cacheService.hget(`auth:sessions:${currentAdminId}`, sessionIdToRevoke);
