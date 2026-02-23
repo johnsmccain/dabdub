@@ -16,8 +16,6 @@ import { ApiKey } from '../../api-key/entities/api-key.entity';
 import { MerchantDocument } from '../../merchant/entities/merchant-document.entity';
 import { DocumentRequest } from '../../merchant/entities/document-request.entity';
 
-
-
 /**
  * Merchant account status
  */
@@ -52,7 +50,6 @@ export enum BankAccountStatus {
 @Index(['kycStatus'])
 @Index(['createdAt'])
 export class Merchant {
-
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -105,12 +102,16 @@ export class Merchant {
   @Column({ name: 'fee_structure', type: 'jsonb', nullable: true })
   feeStructure!: Record<string, any>;
 
-  @Column({ name: 'supported_chains', type: 'text', array: true, nullable: true })
+  @Column({
+    name: 'supported_chains',
+    type: 'text',
+    array: true,
+    nullable: true,
+  })
   supportedChains!: string[];
 
   @Column({ name: 'flags', type: 'jsonb', nullable: true, default: [] })
   flags!: string[];
-
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
@@ -176,8 +177,6 @@ export class Merchant {
   @OneToMany(() => DocumentRequest, (request) => request.merchant)
   documentRequests!: DocumentRequest[];
 }
-
-
 
 /**
  * KYC Document interface
